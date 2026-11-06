@@ -1,0 +1,2160 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
+  <!-- PWA -->
+  <meta name="theme-color" content="#0f62fe">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="충전기 계산기">
+  <link rel="manifest" href="./manifest.json">
+  <link rel="icon" type="image/png" sizes="192x192" href="./icon-192.png">
+  <link rel="apple-touch-icon" href="./icon-192.png">
+  <title>단지별 전기차 충전기 수량 및 필요 수전 용량(kW) 자동 계산기</title>
+
+  <!-- Google Fonts: IBM Plex Sans, IBM Plex Mono, Noto Sans KR -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,300;0,400;0,500;0,600;1,400&family=IBM+Plex+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Noto+Sans+KR:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+  <!-- Lucide Icons (CDN) -->
+  <script src="https://unpkg.com/lucide@1.43.0/dist/umd/lucide.min.js"></script>
+  <!-- Chart.js (CDN) -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js"></script>
+
+  <style>
+    :root {
+      color-scheme: light;
+
+      /* Carbon Design System Base Ramp */
+      --background: #ffffff;
+      --surface-container-low: #f4f4f4;
+      --surface-container: #f4f4f4;
+      --surface-container-high: #e0e0e0;
+      --surface-container-highest: #d1d1d1;
+
+      /* Ink */
+      --on-surface: #161616;
+      --on-surface-variant: #525252;
+      --on-surface-muted: #8d8d8d;
+
+      /* Rules & Outlines */
+      --outline: #8d8d8d;
+      --outline-variant: #e0e0e0;
+      --rule: 1px solid var(--outline-variant);
+      --field-rule: 1px solid var(--outline);
+      --indicator: 2px solid var(--primary);
+
+      /* Accents */
+      --primary: #0f62fe;
+      --primary-hover: #0353e9;
+      --on-primary: #ffffff;
+      --primary-container: #d0e2ff;
+      --on-primary-container: #002d9c;
+      --secondary: #6f6f6f;
+      --tertiary: #198038;
+      --on-tertiary: #ffffff;
+      --tertiary-container: #defbe6;
+      --on-tertiary-container: #0e4c23;
+      --warning: #f1c21b;
+      --warning-container: #fef3d6;
+      --on-warning-container: #8a6100;
+      --error: #da1e28;
+      --on-error: #ffffff;
+      --error-container: #ffd7d9;
+      --on-error-container: #750e13;
+
+      /* Data series */
+      --data-1: #0f62fe;
+      --data-2: #8a3ffc;
+      --data-3: #007d79;
+      --data-4: #ff832b;
+      --data-context: #8d8d8d;
+
+      /* Spacing scale */
+      --space-2xs: 0.25rem;
+      --space-xs: 0.5rem;
+      --space-sm: 0.75rem;
+      --space-md: 1rem;
+      --space-lg: 1.5rem;
+      --space-xl: 2rem;
+      --space-2xl: 3rem;
+
+      /* Typography Scale (Tight tool scale) */
+      --display-size: clamp(1.4rem, 1.2rem + 1vw, 1.85rem);
+      --headline-size: clamp(1.15rem, 1rem + 0.5vw, 1.35rem);
+      --subhead-size: clamp(0.95rem, 0.9rem + 0.2vw, 1.05rem);
+      --body-size: clamp(0.875rem, 0.85rem + 0.1vw, 0.9375rem);
+      --label-size: 0.75rem;
+
+      --font-headline: 'IBM Plex Sans', 'Noto Sans KR', sans-serif;
+      --font-body: 'IBM Plex Sans', 'Noto Sans KR', sans-serif;
+      --font-label: 'IBM Plex Mono', 'Noto Sans KR', monospace;
+
+      /* Shadows & Shapes */
+      --rounded: 0.125rem;
+      --rounded-lg: 0.25rem;
+      --rounded-full: 0.75rem;
+      --shadow-1: 0 2px 6px rgb(0 0 0 / 0.08);
+      --shadow-2: 0 4px 14px rgb(0 0 0 / 0.12);
+
+      /* Transitions */
+      --ease-out: cubic-bezier(0, 0, 0.2, 1);
+      --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    /* Base Reset */
+    *, *::before, *::after { box-sizing: border-box; }
+    html, body {
+      overflow-x: clip;
+      margin: 0;
+      padding: 0;
+      background: var(--background);
+      color: var(--on-surface);
+      font-family: var(--font-body);
+      font-size: var(--body-size);
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    header { position: static !important; }
+
+    /* Page Container */
+    .app-wrapper {
+      max-width: 1080px;
+      margin: 0 auto;
+      padding: var(--space-md);
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-lg);
+    }
+
+    @media (max-width: 640px) {
+      .app-wrapper {
+        padding: var(--space-xs) var(--space-xs) 5.5rem var(--space-xs);
+        gap: var(--space-md);
+      }
+    }
+
+    /* Typography Utilities */
+    h1, h2, h3, h4, p { margin: 0; }
+    .headline {
+      font-family: var(--font-headline);
+      font-weight: 300;
+      letter-spacing: -0.02em;
+      line-height: 1.25;
+    }
+    .headline strong { font-weight: 700; color: var(--on-surface); }
+    .label-mono {
+      font-family: var(--font-label);
+      font-size: var(--label-size);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--on-surface-variant);
+    }
+    .key-value {
+      font-family: var(--font-label);
+      font-weight: 400;
+      line-height: 1.1;
+    }
+
+    /* Carbon Flat Layer Containers */
+    .layer {
+      background: var(--surface-container);
+      border-radius: 0;
+      padding: var(--space-md);
+      position: relative;
+    }
+    .layer-nested {
+      background: var(--surface-container-high);
+      padding: var(--space-sm) var(--space-md);
+      border-radius: 0;
+    }
+    .card-bordered {
+      background: var(--background);
+      border: 1px solid var(--outline-variant);
+      padding: var(--space-md);
+    }
+
+    /* Header Masthead */
+    .masthead {
+      border-bottom: 2px solid var(--on-surface);
+      padding-bottom: var(--space-sm);
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-2xs);
+    }
+    .masthead-meta {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: var(--space-xs);
+    }
+    .badge-regulation {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      background: var(--primary-container);
+      color: var(--on-primary-container);
+      font-family: var(--font-label);
+      font-size: 0.72rem;
+      font-weight: 600;
+      padding: 0.15rem 0.5rem;
+      border-left: 3px solid var(--primary);
+    }
+    .badge-updated {
+      font-family: var(--font-label);
+      font-size: 0.72rem;
+      color: var(--on-surface-variant);
+    }
+
+    /* Preset Chips */
+    .presets-container {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-xs);
+    }
+    .preset-chip-list {
+      display: flex;
+      gap: var(--space-xs);
+      overflow-x: auto;
+      padding-bottom: 0.25rem;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: thin;
+    }
+    .preset-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      background: var(--surface-container);
+      border: 1px solid var(--outline-variant);
+      color: var(--on-surface);
+      font-family: var(--font-body);
+      font-size: 0.82rem;
+      font-weight: 500;
+      padding: 0.45rem 0.85rem;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: background-color 0.15s var(--ease-out), border-color 0.15s var(--ease-out);
+      min-height: 44px;
+    }
+    .preset-btn:hover {
+      background: var(--surface-container-high);
+      border-color: var(--outline);
+    }
+    .preset-btn.active {
+      background: var(--on-surface);
+      color: var(--background);
+      border-color: var(--on-surface);
+    }
+    .preset-btn:focus-visible {
+      outline: 2px solid var(--primary);
+      outline-offset: 2px;
+    }
+
+    /* Main Grid: Inputs on Left/Top, Key Verdict on Right/Top */
+    .tool-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
+      gap: var(--space-lg);
+      align-items: start;
+    }
+    @media (max-width: 860px) {
+      .tool-grid {
+        grid-template-columns: minmax(0, 1fr);
+        gap: var(--space-md);
+      }
+    }
+
+    /* Primary Verdict Hero Tile (Lead with the Result) */
+    .verdict-hero {
+      background: var(--surface-container);
+      border-bottom: 3px solid var(--primary);
+      padding: var(--space-md) var(--space-lg);
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-md);
+    }
+    .verdict-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: var(--space-sm);
+    }
+    .verdict-status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      font-family: var(--font-body);
+      font-weight: 700;
+      font-size: 0.88rem;
+      padding: 0.35rem 0.75rem;
+      border-radius: var(--rounded);
+    }
+    .status-pass {
+      background: var(--tertiary-container);
+      color: var(--on-tertiary-container);
+      border-left: 3px solid var(--tertiary);
+    }
+    .status-fail {
+      background: var(--error-container);
+      color: var(--on-error-container);
+      border-left: 3px solid var(--error);
+    }
+    .status-neutral {
+      background: var(--primary-container);
+      color: var(--on-primary-container);
+      border-left: 3px solid var(--primary);
+    }
+
+    /* Metric Cards Grid */
+    .metrics-summary-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: var(--space-xs);
+    }
+    @media (max-width: 440px) {
+      .metrics-summary-grid {
+        grid-template-columns: minmax(0, 1fr);
+      }
+    }
+    .metric-tile {
+      background: var(--background);
+      border: 1px solid var(--outline-variant);
+      border-bottom: 2px solid var(--outline);
+      padding: var(--space-sm) var(--space-md);
+      display: flex;
+      flex-direction: column;
+      gap: 0.2rem;
+    }
+    .metric-tile.highlight {
+      border-bottom: 2px solid var(--primary);
+    }
+    .metric-tile.alert {
+      border-bottom: 2px solid var(--error);
+    }
+    .metric-tile.success {
+      border-bottom: 2px solid var(--tertiary);
+    }
+    .metric-tile .num {
+      font-size: 1.55rem;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+    }
+    .metric-tile .subtext {
+      font-size: 0.75rem;
+      color: var(--on-surface-variant);
+    }
+
+    /* Form Section & Controls */
+    .form-panel {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-md);
+    }
+    .section-head {
+      border-bottom: var(--rule);
+      padding-bottom: var(--space-2xs);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: var(--space-xs);
+    }
+    .section-title {
+      font-size: 1rem;
+      font-weight: 600;
+      color: var(--on-surface);
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+    }
+    .form-label {
+      font-size: 0.84rem;
+      font-weight: 600;
+      color: var(--on-surface);
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+    }
+    .form-hint {
+      font-size: 0.75rem;
+      color: var(--on-surface-variant);
+      font-weight: 400;
+    }
+
+    /* Touch-friendly input fields with Steppers */
+    .input-stepper-wrap {
+      display: flex;
+      align-items: stretch;
+      background: var(--surface-container);
+      border-bottom: 2px solid var(--outline);
+      transition: border-color 0.2s;
+    }
+    .input-stepper-wrap:focus-within {
+      border-bottom-color: var(--primary);
+    }
+    .stepper-btn {
+      width: 48px;
+      min-height: 48px;
+      background: transparent;
+      border: none;
+      color: var(--on-surface);
+      font-size: 1.2rem;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      touch-action: manipulation;
+      transition: background 0.15s;
+    }
+    .stepper-btn:hover {
+      background: var(--surface-container-high);
+    }
+    .stepper-btn:active {
+      background: var(--surface-container-highest);
+    }
+    .stepper-btn:focus-visible {
+      outline: 2px solid var(--primary);
+    }
+    .stepper-input {
+      flex: 1;
+      min-width: 0;
+      border: none;
+      background: transparent;
+      padding: var(--space-xs) var(--space-sm);
+      font-family: var(--font-label);
+      font-size: 1.15rem;
+      font-weight: 500;
+      text-align: center;
+      color: var(--on-surface);
+      min-height: 48px;
+    }
+    .stepper-input:focus {
+      outline: none;
+    }
+
+    /* Segmented Radio Toggle (기축 / 신축) */
+    .segmented-control {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      background: var(--surface-container-high);
+      padding: 3px;
+      border-radius: var(--rounded);
+      gap: 3px;
+    }
+    .segment-opt {
+      position: relative;
+    }
+    .segment-opt input[type="radio"] {
+      position: absolute;
+      opacity: 0;
+      pointer-events: none;
+    }
+    .segment-opt label {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 0.55rem 0.5rem;
+      text-align: center;
+      cursor: pointer;
+      font-size: 0.85rem;
+      font-weight: 600;
+      background: transparent;
+      color: var(--on-surface-variant);
+      transition: all 0.15s var(--ease-out);
+      min-height: 52px;
+    }
+    .segment-opt input[type="radio"]:checked + label {
+      background: var(--background);
+      color: var(--primary);
+      box-shadow: 0 1px 4px rgb(0 0 0 / 0.1);
+      font-weight: 700;
+    }
+    .segment-opt input[type="radio"]:focus-visible + label {
+      outline: 2px solid var(--primary);
+    }
+    .segment-sub {
+      font-size: 0.72rem;
+      font-family: var(--font-label);
+      font-weight: 400;
+      opacity: 0.85;
+      margin-top: 0.1rem;
+    }
+
+    /* Sliders */
+    .slider-container {
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+    }
+    .slider-row {
+      display: flex;
+      align-items: center;
+      gap: var(--space-md);
+    }
+    .custom-range {
+      flex: 1;
+      height: 6px;
+      background: var(--surface-container-high);
+      border-radius: 3px;
+      outline: none;
+      -webkit-appearance: none;
+      accent-color: var(--primary);
+      cursor: pointer;
+    }
+    .custom-range::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 22px;
+      height: 22px;
+      background: var(--primary);
+      border: 2px solid #ffffff;
+      border-radius: 50%;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+      cursor: pointer;
+    }
+    .custom-range::-moz-range-thumb {
+      width: 22px;
+      height: 22px;
+      background: var(--primary);
+      border: 2px solid #ffffff;
+      border-radius: 50%;
+      cursor: pointer;
+    }
+    .slider-val-badge {
+      font-family: var(--font-label);
+      font-size: 0.85rem;
+      font-weight: 600;
+      min-width: 48px;
+      text-align: right;
+      color: var(--primary);
+    }
+
+    /* Sub-options Selector (kW power ratings) */
+    .inline-select-row {
+      display: flex;
+      align-items: center;
+      gap: var(--space-xs);
+      font-size: 0.8rem;
+    }
+    .select-carbon {
+      font-family: var(--font-label);
+      font-size: 0.82rem;
+      font-weight: 500;
+      padding: 0.35rem 0.65rem;
+      background: var(--surface-container);
+      border: 1px solid var(--outline);
+      color: var(--on-surface);
+      cursor: pointer;
+      min-height: 40px;
+      border-radius: var(--rounded);
+    }
+    .select-carbon:focus-visible {
+      outline: 2px solid var(--primary);
+    }
+
+    /* Mixed Parking Diagnostic Card */
+    .mixed-parking-card {
+      border-left: 4px solid var(--outline);
+      background: var(--surface-container);
+      padding: var(--space-md);
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-sm);
+    }
+    .mixed-parking-card.allowed {
+      border-left-color: var(--tertiary);
+      background: var(--tertiary-container);
+      color: var(--on-tertiary-container);
+    }
+    .mixed-parking-card.disallowed {
+      border-left-color: var(--error);
+      background: var(--error-container);
+      color: var(--on-error-container);
+    }
+    .mixed-title {
+      font-size: 0.95rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+    .mixed-desc {
+      font-size: 0.83rem;
+      line-height: 1.45;
+    }
+    .mixed-checklist {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 0.3rem;
+      font-size: 0.8rem;
+    }
+    .mixed-checklist li {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.4rem;
+    }
+
+    /* Power Capacity & Load Analysis Panel */
+    .power-analysis-panel {
+      background: var(--background);
+      border: 1px solid var(--outline-variant);
+      padding: var(--space-md);
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-md);
+    }
+    .chart-container-wrap {
+      position: relative;
+      width: 100%;
+      height: 180px;
+      min-height: 180px;
+    }
+    .power-compare-box {
+      background: var(--surface-container);
+      border-left: 3px solid var(--primary);
+      padding: var(--space-sm) var(--space-md);
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+      font-size: 0.83rem;
+    }
+    .power-compare-box strong {
+      color: var(--primary);
+      font-family: var(--font-label);
+      font-size: 0.95rem;
+    }
+
+    /* 2026 Legal & Penalty Matrix (Table & Accordion) */
+    .penalty-matrix {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-sm);
+    }
+    .matrix-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.82rem;
+    }
+    .matrix-table th {
+      background: var(--surface-container-high);
+      font-family: var(--font-label);
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      text-align: left;
+      padding: 0.5rem 0.65rem;
+      border-bottom: 2px solid var(--outline);
+    }
+    .matrix-table td {
+      padding: 0.55rem 0.65rem;
+      border-bottom: 1px solid var(--outline-variant);
+      vertical-align: top;
+    }
+    .matrix-table tr:hover {
+      background: var(--surface-container);
+    }
+    .tag-fine {
+      font-family: var(--font-label);
+      font-weight: 700;
+      font-size: 0.75rem;
+      padding: 0.15rem 0.45rem;
+      border-radius: var(--rounded);
+      background: var(--error-container);
+      color: var(--on-error-container);
+      display: inline-block;
+      white-space: nowrap;
+    }
+    .tag-highlight {
+      font-family: var(--font-label);
+      font-weight: 700;
+      font-size: 0.72rem;
+      padding: 0.15rem 0.4rem;
+      border-radius: var(--rounded);
+      background: var(--warning-container);
+      color: var(--on-warning-container);
+      display: inline-block;
+    }
+
+    /* 2026 Warning Callout Banner */
+    .callout-2026 {
+      border: 1px solid var(--outline-variant);
+      border-left: 4px solid var(--error);
+      background: var(--surface-container);
+      padding: var(--space-sm) var(--space-md);
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+      font-size: 0.82rem;
+    }
+    .callout-title {
+      font-weight: 700;
+      color: var(--error);
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+    }
+
+    /* Action Buttons (Copy, Print, Export) */
+    .action-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--space-xs);
+    }
+    .btn-action {
+      flex: 1;
+      min-width: 140px;
+      min-height: 48px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.45rem;
+      font-family: var(--font-body);
+      font-size: 0.86rem;
+      font-weight: 600;
+      cursor: pointer;
+      padding: 0.5rem 1rem;
+      border-radius: var(--rounded);
+      transition: all 0.15s var(--ease-out);
+    }
+    .btn-primary {
+      background: var(--primary);
+      color: var(--on-primary);
+      border: none;
+    }
+    .btn-primary:hover {
+      background: var(--primary-hover);
+    }
+    .btn-secondary {
+      background: var(--background);
+      border: 1px solid var(--outline);
+      color: var(--on-surface);
+    }
+    .btn-secondary:hover {
+      background: var(--surface-container);
+    }
+    .btn-action:focus-visible {
+      outline: 2px solid var(--primary);
+      outline-offset: 2px;
+    }
+
+    /* Sticky Mobile Bottom Bar */
+    .mobile-sticky-bar {
+      display: none;
+    }
+    @media (max-width: 640px) {
+      .mobile-sticky-bar {
+        display: flex;
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        background: var(--background);
+        border-top: 2px solid var(--outline);
+        padding: 0.5rem 0.85rem;
+        box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.12);
+        z-index: 100;
+        justify-content: space-between;
+        align-items: center;
+        gap: var(--space-xs);
+      }
+      .sticky-metric {
+        display: flex;
+        flex-direction: column;
+      }
+      .sticky-label {
+        font-family: var(--font-label);
+        font-size: 0.68rem;
+        color: var(--on-surface-variant);
+        text-transform: uppercase;
+      }
+      .sticky-value {
+        font-family: var(--font-label);
+        font-size: 1.05rem;
+        font-weight: 700;
+        line-height: 1.2;
+      }
+      .sticky-btn {
+        background: var(--primary);
+        color: #ffffff;
+        border: none;
+        padding: 0.45rem 0.75rem;
+        font-size: 0.8rem;
+        font-weight: 600;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.3rem;
+        min-height: 42px;
+        cursor: pointer;
+      }
+    }
+
+    /* Modal / Report Dialog */
+    .modal-backdrop {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.6);
+      backdrop-filter: blur(2px);
+      z-index: 200;
+      align-items: center;
+      justify-content: center;
+      padding: var(--space-md);
+    }
+    .modal-backdrop.open {
+      display: flex;
+    }
+    .modal-sheet {
+      background: var(--background);
+      border: 1px solid var(--outline);
+      max-width: 620px;
+      width: 100%;
+      max-height: 90vh;
+      display: flex;
+      flex-direction: column;
+      box-shadow: var(--shadow-2);
+    }
+    .modal-header {
+      padding: var(--space-md);
+      border-bottom: 2px solid var(--on-surface);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .modal-body {
+      padding: var(--space-md);
+      overflow-y: auto;
+      font-size: 0.85rem;
+      line-height: 1.6;
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-md);
+    }
+    .modal-footer {
+      padding: var(--space-sm) var(--space-md);
+      border-top: 1px solid var(--outline-variant);
+      background: var(--surface-container);
+      display: flex;
+      justify-content: flex-end;
+      gap: var(--space-xs);
+    }
+
+    /* Print Formatting */
+    @media print {
+      body {
+        background: #ffffff !important;
+        color: #000000 !important;
+      }
+      .mobile-sticky-bar, .presets-container, .action-row, .modal-backdrop, .stepper-btn {
+        display: none !important;
+      }
+      .tool-grid {
+        display: block !important;
+      }
+      .app-wrapper {
+        padding: 0 !important;
+        max-width: 100% !important;
+      }
+      .layer, .card-bordered {
+        border: 1px solid #ccc !important;
+        background: transparent !important;
+        page-break-inside: avoid;
+        margin-bottom: 1rem;
+      }
+    }
+
+    /* Toast Notification */
+    .toast-msg {
+      position: fixed;
+      bottom: 5rem;
+      left: 50%;
+      transform: translateX(-50%) translateY(20px);
+      background: #161616;
+      color: #ffffff;
+      font-size: 0.82rem;
+      font-weight: 500;
+      padding: 0.6rem 1.2rem;
+      border-radius: var(--rounded);
+      opacity: 0;
+      pointer-events: none;
+      transition: all 0.25s var(--ease-out);
+      z-index: 300;
+      box-shadow: var(--shadow-1);
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+    .toast-msg.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+  </style>
+</head>
+<body>
+
+<div class="app-wrapper">
+
+  <!-- Header Masthead -->
+  <header class="masthead">
+    <div class="masthead-meta">
+      <div class="badge-regulation">
+        <i data-lucide="shield-alert" style="width: 13px; height: 13px;"></i>
+        2026 친환경자동차법 신규 규정 & 아파트 주차 가이드
+      </div>
+      <div class="badge-updated">법정 유예 만료: 2026년 1월 27일</div>
+    </div>
+    <h1 class="headline">
+      아파트 단지별 <strong>전기차 충전기 수량 & 필요 수전용량(kW)</strong> 계산기
+    </h1>
+    <p style="font-size: 0.85rem; color: var(--on-surface-variant);">
+      기축·신축 의무 비율, 완속/급속 배분, 피크 전력 부하, 혼용 주차 허용 여부 및 위반 시 벌칙(이행강제금·과태료)을 원스톱으로 산출합니다.
+    </p>
+  </header>
+
+  <!-- Quick Presets Carousel -->
+  <section class="presets-container" aria-label="사전 설정 시나리오">
+    <div class="section-head" style="border-bottom: none; padding-bottom: 0;">
+      <span class="label-mono">단지 유형별 빠른 설정 (PRESETS)</span>
+      <span class="form-hint">클릭 시 해당 단지 규모 즉시 반영</span>
+    </div>
+    <div class="preset-chip-list">
+      <button type="button" class="preset-btn active" onclick="applyPreset('standard_old')">
+        <i data-lucide="building" style="width: 15px; height: 15px;"></i>
+        중형 기축 (850세대 · 2%)
+      </button>
+      <button type="button" class="preset-btn" onclick="applyPreset('large_old')">
+        <i data-lucide="building-2" style="width: 15px; height: 15px;"></i>
+        대단지 기축 (1,500세대 · 2%)
+      </button>
+      <button type="button" class="preset-btn" onclick="applyPreset('new_built')">
+        <i data-lucide="sparkles" style="width: 15px; height: 15px;"></i>
+        신축 단지 (600세대 · 5%)
+      </button>
+      <button type="button" class="preset-btn" onclick="applyPreset('small_new_target')">
+        <i data-lucide="alert-circle" style="width: 15px; height: 15px;"></i>
+        신규 단속 편입 (180세대 · 2%)
+      </button>
+    </div>
+  </section>
+
+  <!-- Interactive Grid: Left (Inputs) / Right (Verdict & Analysis) -->
+  <div class="tool-grid">
+
+    <!-- INPUTS COLUMN -->
+    <div class="form-panel">
+
+      <!-- 1. Complex Baseline Information -->
+      <section class="card-bordered" style="display: flex; flex-direction: column; gap: var(--space-md);">
+        <div class="section-head">
+          <h2 class="section-title">
+            <i data-lucide="home" style="width: 16px; height: 16px; color: var(--primary);"></i>
+            1. 아파트 단지 기본 정보
+          </h2>
+          <span class="label-mono">STEP 01</span>
+        </div>
+
+        <!-- Apartment Name (Optional) -->
+        <div class="form-group">
+          <label class="form-label" for="input-apt-name">
+            단지명 (선택사항)
+            <span class="form-hint">보고서 출력용</span>
+          </label>
+          <input type="text" id="input-apt-name" class="stepper-input" style="text-align: left; background: var(--surface-container); border-bottom: 2px solid var(--outline); padding-left: 0.75rem;" value="행복마을 센트럴파크" oninput="handleAptNameChange(this.value)">
+        </div>
+
+        <!-- Construction Status Radio (기축 2% vs 신축 5%) -->
+        <div class="form-group">
+          <label class="form-label">
+            건축허가 준공 시점 구분
+            <span class="form-hint">친환경차법 제11조의2</span>
+          </label>
+          <div class="segmented-control" role="radiogroup">
+            <div class="segment-opt">
+              <input type="radio" id="type-existing" name="building-era" value="existing" checked onchange="handleBuildingEraChange('existing')">
+              <label for="type-existing">
+                <span>기축 아파트</span>
+                <span class="segment-sub">2022.01.28 이전 허가 (2%)</span>
+              </label>
+            </div>
+            <div class="segment-opt">
+              <input type="radio" id="type-new" name="building-era" value="new" onchange="handleBuildingEraChange('new')">
+              <label for="type-new">
+                <span>신축 아파트</span>
+                <span class="segment-sub">2022.01.28 이후 허가 (5%)</span>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <!-- Total Household Units -->
+        <div class="form-group">
+          <label class="form-label" for="input-households">
+            총 세대수
+            <span class="form-hint" id="household-hint">100세대 이상 의무 대상</span>
+          </label>
+          <div class="input-stepper-wrap">
+            <button type="button" class="stepper-btn" onclick="stepNumberInput('input-households', -50)" aria-label="세대수 50 감소">-50</button>
+            <input type="number" id="input-households" class="stepper-input" value="850" min="50" max="10000" step="10" oninput="handleHouseholdChange(this.value)">
+            <button type="button" class="stepper-btn" onclick="stepNumberInput('input-households', 50)" aria-label="세대수 50 증가">+50</button>
+          </div>
+        </div>
+
+        <!-- Total Parking Slots -->
+        <div class="form-group">
+          <label class="form-label" for="input-parking">
+            총 주차면수
+            <span class="form-hint">의무 비율(2%/5%) 산정 기준</span>
+          </label>
+          <div class="input-stepper-wrap">
+            <button type="button" class="stepper-btn" onclick="stepNumberInput('input-parking', -50)" aria-label="주차면수 50 감소">-50</button>
+            <input type="number" id="input-parking" class="stepper-input" value="1020" min="50" max="15000" step="10" oninput="handleParkingChange(this.value)">
+            <button type="button" class="stepper-btn" onclick="stepNumberInput('input-parking', 50)" aria-label="주차면수 50 증가">+50</button>
+          </div>
+          <div style="font-size: 0.75rem; color: var(--on-surface-variant); display: flex; justify-content: space-between;">
+            <span>세대당 주차대수: <strong id="val-ratio-car" style="font-family: var(--font-label); color: var(--on-surface);">1.20대</strong></span>
+            <span>법정 의무 산정치: <strong id="val-calc-exact" style="font-family: var(--font-label); color: var(--primary);">20.40대</strong></span>
+          </div>
+        </div>
+
+        <!-- Registered Eco-friendly Vehicles -->
+        <div class="form-group">
+          <label class="form-label" for="input-green-cars">
+            단지 내 등록된 친환경차 대수 (BEV + PHEV)
+            <span class="form-hint">혼용 주차 허용 판정 기준</span>
+          </label>
+          <div class="input-stepper-wrap">
+            <button type="button" class="stepper-btn" onclick="stepNumberInput('input-green-cars', -5)" aria-label="친환경차 5대 감소">-5</button>
+            <input type="number" id="input-green-cars" class="stepper-input" value="28" min="0" max="5000" step="1" oninput="handleGreenCarsChange(this.value)">
+            <button type="button" class="stepper-btn" onclick="stepNumberInput('input-green-cars', 5)" aria-label="친환경차 5대 증가">+5</button>
+          </div>
+          <span style="font-size: 0.72rem; color: var(--on-surface-variant);">
+            ※ 순수 전기차(BEV) 및 플러그인 하이브리드(PHEV) 등록 차량의 합계입니다.
+          </span>
+        </div>
+      </section>
+
+      <!-- 2. Charger Installation Plan -->
+      <section class="card-bordered" style="display: flex; flex-direction: column; gap: var(--space-md);">
+        <div class="section-head">
+          <h2 class="section-title">
+            <i data-lucide="zap" style="width: 16px; height: 16px; color: var(--primary);"></i>
+            2. 충전기 설치(계획) 수량 및 출력 설정
+          </h2>
+          <span class="label-mono">STEP 02</span>
+        </div>
+
+        <!-- Slow Chargers (완속) -->
+        <div class="form-group">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <label class="form-label" for="input-slow-count" style="margin-bottom: 0;">
+              완속 충전기 수량
+            </label>
+            <div class="inline-select-row">
+              <label for="select-slow-power" class="label-mono">1기당 출력</label>
+              <select id="select-slow-power" class="select-carbon" onchange="handleSlowPowerChange(this.value)">
+                <option value="7" selected>7 kW (표준 완속)</option>
+                <option value="11">11 kW (중속 완속)</option>
+                <option value="30">30 kW (중급속 완속)</option>
+              </select>
+            </div>
+          </div>
+          <div class="input-stepper-wrap">
+            <button type="button" class="stepper-btn" onclick="stepNumberInput('input-slow-count', -1)" aria-label="완속 1대 감소">-1</button>
+            <input type="number" id="input-slow-count" class="stepper-input" value="19" min="0" max="1000" step="1" oninput="handleSlowCountChange(this.value)">
+            <button type="button" class="stepper-btn" onclick="stepNumberInput('input-slow-count', 1)" aria-label="완속 1대 증가">+1</button>
+          </div>
+          <div style="font-size: 0.75rem; color: var(--on-surface-variant); display: flex; justify-content: space-between;">
+            <span>완속 정격 합계:</span>
+            <strong id="val-slow-total-kw" style="font-family: var(--font-label); color: var(--on-surface);">133 kW</strong>
+          </div>
+        </div>
+
+        <!-- Fast Chargers (급속) -->
+        <div class="form-group">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <label class="form-label" for="input-fast-count" style="margin-bottom: 0;">
+              급속 충전기 수량
+            </label>
+            <div class="inline-select-row">
+              <label for="select-fast-power" class="label-mono">1기당 출력</label>
+              <select id="select-fast-power" class="select-carbon" onchange="handleFastPowerChange(this.value)">
+                <option value="50" selected>50 kW (표준 급속)</option>
+                <option value="100">100 kW (대용량 급속)</option>
+                <option value="200">200 kW (초급속)</option>
+              </select>
+            </div>
+          </div>
+          <div class="input-stepper-wrap">
+            <button type="button" class="stepper-btn" onclick="stepNumberInput('input-fast-count', -1)" aria-label="급속 1대 감소">-1</button>
+            <input type="number" id="input-fast-count" class="stepper-input" value="2" min="0" max="100" step="1" oninput="handleFastCountChange(this.value)">
+            <button type="button" class="stepper-btn" onclick="stepNumberInput('input-fast-count', 1)" aria-label="급속 1대 증가">+1</button>
+          </div>
+          <div style="font-size: 0.75rem; color: var(--on-surface-variant); display: flex; justify-content: space-between;">
+            <span>급속 정격 합계:</span>
+            <strong id="val-fast-total-kw" style="font-family: var(--font-label); color: var(--on-surface);">100 kW</strong>
+          </div>
+        </div>
+
+        <!-- Diversity Factor / Coincidence slider -->
+        <div class="form-group slider-container" style="margin-top: 0.5rem; background: var(--surface-container); padding: var(--space-sm); border-radius: var(--rounded);">
+          <div class="form-label">
+            <span>동시 충전 수용률 (다양성 계수)</span>
+            <span class="slider-val-badge" id="lbl-diversity-val">80%</span>
+          </div>
+          <div class="slider-row">
+            <span style="font-size: 0.72rem; color: var(--on-surface-muted);">50%</span>
+            <input type="range" id="slider-diversity" class="custom-range" min="50" max="100" value="80" step="5" oninput="handleDiversityChange(this.value)">
+            <span style="font-size: 0.72rem; color: var(--on-surface-muted);">100%</span>
+          </div>
+          <span style="font-size: 0.72rem; color: var(--on-surface-variant);">
+            ※ 야간 집중 충전 시 동시 가동 비율(일반 아파트 권장 기준: 70~85%)
+          </span>
+        </div>
+
+        <!-- Transformer Spare Capacity -->
+        <div class="form-group">
+          <label class="form-label" for="input-spare-kw">
+            단지 변압기 수전 여유 용량(kW)
+            <span class="form-hint">안전 한도 진단용</span>
+          </label>
+          <div class="input-stepper-wrap">
+            <button type="button" class="stepper-btn" onclick="stepNumberInput('input-spare-kw', -20)" aria-label="여유용량 20kW 감소">-20</button>
+            <input type="number" id="input-spare-kw" class="stepper-input" value="220" min="0" max="3000" step="10" oninput="handleSpareKwChange(this.value)">
+            <button type="button" class="stepper-btn" onclick="stepNumberInput('input-spare-kw', 20)" aria-label="여유용량 20kW 증가">+20</button>
+          </div>
+          <span style="font-size: 0.72rem; color: var(--on-surface-variant);">
+            ※ 관리사무소 전기안전관리자 확인 수치 (모를 경우 150~250kW 추천)
+          </span>
+        </div>
+      </section>
+
+    </div>
+
+    <!-- OUTPUTS & VERDICT COLUMN -->
+    <div style="display: flex; flex-direction: column; gap: var(--space-md);">
+
+      <!-- 1. The Core Verdict (Lead with the Result) -->
+      <section class="verdict-hero">
+        <div class="verdict-header">
+          <div>
+            <span class="label-mono">LEGAL COMPLIANCE STATUS</span>
+            <h2 class="headline" style="font-size: 1.35rem; margin-top: 0.15rem;">
+              <span id="verdict-apt-title">행복마을 센트럴파크</span>
+            </h2>
+          </div>
+          <div id="badge-compliance" class="verdict-status-pill status-pass">
+            <i data-lucide="check-circle-2" style="width: 16px; height: 16px;"></i>
+            <span id="badge-compliance-text">법정 의무 충족</span>
+          </div>
+        </div>
+
+        <!-- Key Metrics Cards -->
+        <div class="metrics-summary-grid">
+          <!-- Required vs Installed -->
+          <div class="metric-tile highlight" id="tile-charger-status">
+            <span class="label-mono">설치 충전기 / 법정의무</span>
+            <div class="num">
+              <span id="kpi-installed-count">21</span><span style="font-size: 1rem; color: var(--on-surface-variant); font-weight: 400;"> / </span><span id="kpi-required-count">21</span><span style="font-size: 0.95rem; font-weight: 400;">대</span>
+            </div>
+            <div class="subtext" id="kpi-diff-text" style="color: var(--tertiary); font-weight: 600;">
+              의무 기준 100% 달성 (+0대)
+            </div>
+          </div>
+
+          <!-- Peak Power Demand -->
+          <div class="metric-tile" id="tile-power-status">
+            <span class="label-mono">필요 피크 수전용량</span>
+            <div class="num">
+              <span id="kpi-peak-kw">186.4</span><span style="font-size: 0.95rem; font-weight: 400;"> kW</span>
+            </div>
+            <div class="subtext" id="kpi-power-equivalent">
+              약 62세대 동시 전력량
+            </div>
+          </div>
+        </div>
+
+        <!-- Mixed Parking Status Card -->
+        <div id="mixed-parking-box" class="mixed-parking-card allowed">
+          <div class="mixed-title">
+            <i id="icon-mixed" data-lucide="parking-square" style="width: 18px; height: 18px;"></i>
+            <span id="title-mixed">충전 구역 '혼용 주차' 허용 요건: 충족 (허용 가능)</span>
+          </div>
+          <div class="mixed-desc" id="desc-mixed">
+            설치된 충전 구역(21면)이 등록된 친환경 차량(28대)보다 적거나 같으므로 현재는 전용 주차가 요구됩니다.
+          </div>
+          <ul class="mixed-checklist" id="checklist-mixed">
+            <li>
+              <i data-lucide="check" style="width: 14px; height: 14px; flex-shrink: 0; margin-top: 2px;"></i>
+              <span><strong>지자체 승인 불필요:</strong> 입주자대표회의 자체 의결만으로 즉시 도입 가능</span>
+            </li>
+            <li>
+              <i data-lucide="alert-triangle" style="width: 14px; height: 14px; flex-shrink: 0; margin-top: 2px; color: var(--error);"></i>
+              <span><strong>필수 표지 부착:</strong> 주차면에 <u>"일반 차량 주차 가능"</u> 안내 표지가 있어야 과태료 면제</span>
+            </li>
+          </ul>
+        </div>
+      </section>
+
+      <!-- 2. Electrical Capacity & Load Breakdown -->
+      <section class="power-analysis-panel">
+        <div class="section-head">
+          <h3 class="section-title">
+            <i data-lucide="gauge" style="width: 16px; height: 16px; color: var(--primary);"></i>
+            수전 용량 분석 및 가구 환산 비교
+          </h3>
+          <span class="label-mono">LOAD ANALYSIS</span>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-xs);">
+          <div class="layer-nested">
+            <span class="label-mono">설비 정격 용량 (단순합)</span>
+            <div class="key-value" style="font-size: 1.15rem; font-weight: 600;" id="val-nameplate-kw">233 kW</div>
+            <span style="font-size: 0.72rem; color: var(--on-surface-variant);">완속 133kW + 급속 100kW</span>
+          </div>
+          <div class="layer-nested">
+            <span class="label-mono">변압기 여유 대비 마진</span>
+            <div class="key-value" style="font-size: 1.15rem; font-weight: 600;" id="val-transformer-margin">+33.6 kW</div>
+            <span style="font-size: 0.72rem;" id="val-margin-status" style="color: var(--tertiary);">여유 용량 내 안전</span>
+          </div>
+        </div>
+
+        <!-- Chart.js Power Load Doughnut/Bar Canvas -->
+        <div class="chart-container-wrap">
+          <canvas id="chart-power-load"></canvas>
+        </div>
+
+        <!-- Household Equivalent Explainer -->
+        <div class="power-compare-box">
+          <div>
+            전기차 충전 피크 부하 <strong id="box-peak-kw">186.4 kW</strong>는 일반 30평형 아파트(동시 피크 3kW 기준) 약 <strong id="box-house-eq">62세대</strong>가 동시에 모든 가전을 풀가동하는 막대한 전력량입니다.
+          </div>
+          <div style="font-size: 0.74rem; color: var(--on-surface-variant); margin-top: 0.2rem;">
+            💡 <strong>실무 팁:</strong> 충전기 대량 설치 시 한전 계약전력 기본요금 및 수전설비(수전 케이블·변압기) 과열 방지를 위해 한국전력 '심야 경부하 요금제' 연계 및 완속 분산 충전을 적극 권장합니다.
+          </div>
+        </div>
+      </section>
+
+      <!-- 3. 2026 Legal Warnings & Penalties Matrix -->
+      <section class="card-bordered" style="display: flex; flex-direction: column; gap: var(--space-md);">
+        <div class="section-head">
+          <h3 class="section-title">
+            <i data-lucide="scale" style="width: 16px; height: 16px; color: var(--error);"></i>
+            2026년 기준 벌칙 & 과태료 상세 단속 기준
+          </h3>
+          <span class="label-mono">PENALTIES</span>
+        </div>
+
+        <!-- Notice Alert for 2026 Deadlines -->
+        <div class="callout-2026">
+          <div class="callout-title">
+            <i data-lucide="alert-octagon" style="width: 16px; height: 16px;"></i>
+            2026년 1월 27일 법정 의무 설치 유예 최종 만료
+          </div>
+          <div>
+            100세대 이상 아파트가 법정 의무 비율(기축 2%, 신축 5%)을 미달할 경우 관할 지자체장의 <strong>시정 명령</strong>이 발령되며, 미이행 시 <strong>최대 3,000만 원 이하의 이행강제금</strong>이 관리주체(입대의·관리소)에 부과됩니다. (추가 유예 없음)
+          </div>
+          <div style="font-size: 0.74rem; color: var(--on-surface-variant); margin-top: 0.15rem;">
+            ※ 법정 의무 수량 설치는 입주자 2/3 동의 없이 <u>입주자대표회의 의결만으로 추진 가능</u>하며, '무공해차 통합 누리집'을 통해 1기당 최대 140만~500만 원의 국비 보조금 지원을 신청할 수 있습니다.
+          </div>
+        </div>
+
+        <!-- Matrix Table: 2026 Charging Rules -->
+        <div style="overflow-x: auto;">
+          <table class="matrix-table">
+            <thead>
+              <tr>
+                <th>위반 행위 구분</th>
+                <th>2026년 단속 및 시간 제한 기준</th>
+                <th>과태료 / 처벌</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>PHEV 완속 충전</strong></td>
+                <td>
+                  <span class="tag-highlight">2026.02.05 개정</span><br>
+                  최대 <strong>7시간</strong> 초과 주차 시 단속 (기존 14시간에서 절반 단축)
+                </td>
+                <td><span class="tag-fine">과태료 10만 원</span></td>
+              </tr>
+              <tr>
+                <td><strong>순수 전기차 (BEV) 완속</strong></td>
+                <td>완속 충전기 <strong>14시간</strong> 초과 주차 시 단속</td>
+                <td><span class="tag-fine">과태료 10만 원</span></td>
+              </tr>
+              <tr>
+                <td><strong>급속 충전기 (전 차종)</strong></td>
+                <td>급속 충전기 <strong>1시간</strong> 초과 주차 시 단속</td>
+                <td><span class="tag-fine">과태료 10만 원</span></td>
+              </tr>
+              <tr>
+                <td><strong>내연기관차 무단 주차</strong></td>
+                <td>혼용 주차 안내 표지가 없는 전용 충전구역 내 주차</td>
+                <td><span class="tag-fine">과태료 10만 원</span></td>
+              </tr>
+              <tr>
+                <td><strong>충전 방해 & 물건 적치</strong></td>
+                <td>충전구역 앞/주위/진입로에 물건 적치 및 진입 방해</td>
+                <td><span class="tag-fine">과태료 10만 원</span></td>
+              </tr>
+              <tr>
+                <td><strong>충전 시설·표시선 훼손</strong></td>
+                <td>충전 구역 구획선 훼손, 충전기 및 부대설비 고의 훼손</td>
+                <td><span class="tag-fine" style="background: #da1e28; color: #ffffff;">과태료 20만 원</span></td>
+              </tr>
+              <tr>
+                <td><strong>단지 법정설치 미달</strong></td>
+                <td>100세대 이상 아파트 의무비율 미달 (유예 만료)</td>
+                <td><span class="tag-fine" style="background: #a2191f; color: #ffffff;">이행강제금 최대 3,000만 원</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div style="font-size: 0.74rem; color: var(--on-surface-variant); background: var(--surface-container); padding: 0.5rem 0.75rem;">
+          📢 <strong>단속 범위 확대 주의:</strong> 기존에는 500세대 미만 아파트가 완속 충전기 단속 예외였으나, 예외 기준이 100세대 미만으로 축소되어 <strong>100세대 이상 500세대 미만 중소형 단지도 지자체 과태료 단속에 전면 포함</strong>되었습니다.
+        </div>
+      </section>
+
+      <!-- Action Buttons: Copy / Print / Agenda Modal -->
+      <div class="action-row">
+        <button type="button" class="btn-action btn-primary" onclick="openAgendaModal()">
+          <i data-lucide="file-text" style="width: 16px; height: 16px;"></i>
+          입대의 의결 검토서 생성
+        </button>
+        <button type="button" class="btn-action btn-secondary" onclick="copyReportText()">
+          <i data-lucide="copy" style="width: 16px; height: 16px;"></i>
+          요약 보고서 복사
+        </button>
+        <button type="button" class="btn-action btn-secondary" onclick="window.print()">
+          <i data-lucide="printer" style="width: 16px; height: 16px;"></i>
+          결과 인쇄 / PDF
+        </button>
+      </div>
+
+    </div>
+
+  </div>
+
+</div>
+
+<!-- Sticky Bottom Bar for Mobile -->
+<aside class="mobile-sticky-bar" aria-label="모바일 요약 바">
+  <div class="sticky-metric">
+    <span class="sticky-label">의무 충족 여부</span>
+    <span class="sticky-value" id="sticky-verdict-text" style="color: var(--tertiary);">충족 (21/21대)</span>
+  </div>
+  <div class="sticky-metric">
+    <span class="sticky-label">피크 수전</span>
+    <span class="sticky-value" id="sticky-peak-kw">186 kW</span>
+  </div>
+  <button type="button" class="sticky-btn" onclick="openAgendaModal()">
+    <i data-lucide="file-check" style="width: 14px; height: 14px;"></i>
+    의결서
+  </button>
+</aside>
+
+<!-- Modal: Resident Council Review Agenda Sheet -->
+<div id="modal-agenda" class="modal-backdrop" onclick="handleBackdropClick(event)">
+  <div class="modal-sheet" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+    <div class="modal-header">
+      <h3 id="modal-title" class="section-title" style="font-size: 1.05rem;">
+        <i data-lucide="clipboard-list" style="width: 18px; height: 18px; color: var(--primary);"></i>
+        입주자대표회의 의결 검토 보고서
+      </h3>
+      <button type="button" class="stepper-btn" style="width: 36px; min-height: 36px;" onclick="closeAgendaModal()" aria-label="창 닫기">✕</button>
+    </div>
+    <div class="modal-body" id="modal-report-content">
+      <!-- Dynamic Report Content Inserted by JS -->
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn-action btn-secondary" style="min-width: 100px; min-height: 40px;" onclick="closeAgendaModal()">닫기</button>
+      <button type="button" class="btn-action btn-primary" style="min-width: 120px; min-height: 40px;" onclick="copyReportText()">
+        <i data-lucide="copy" style="width: 14px; height: 14px;"></i>
+        보고서 복사
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast Feedback -->
+<div id="toast-notify" class="toast-msg" role="status" aria-live="polite">
+  <i data-lucide="check" style="width: 15px; height: 15px;"></i>
+  <span id="toast-text">내용이 복사되었습니다.</span>
+</div>
+
+<script>
+  // --- App State Object ---
+  var state = {
+    aptName: "행복마을 센트럴파크",
+    buildingEra: "existing", // 'existing' (2%) or 'new' (5%)
+    households: 850,
+    parkingSlots: 1020,
+    greenCars: 28,
+    slowChargers: 19,
+    slowPowerKw: 7,
+    fastChargers: 2,
+    fastPowerKw: 50,
+    diversityPct: 80,
+    spareKw: 220
+  };
+
+  var chartInstance = null;
+
+  // --- Presets Definition ---
+  var PRESETS = {
+    standard_old: {
+      name: "구축 중형 단지 (850세대 · 기축 2%)",
+      aptName: "행복마을 센트럴파크",
+      buildingEra: "existing",
+      households: 850,
+      parkingSlots: 1020,
+      greenCars: 28,
+      slowChargers: 19,
+      slowPowerKw: 7,
+      fastChargers: 2,
+      fastPowerKw: 50,
+      diversityPct: 80,
+      spareKw: 220
+    },
+    large_old: {
+      name: "대단지 기축 아파트 (1,500세대 · 기축 2%)",
+      aptName: "푸른숲 대단지 자이",
+      buildingEra: "existing",
+      households: 1500,
+      parkingSlots: 1800,
+      greenCars: 45,
+      slowChargers: 32,
+      slowPowerKw: 7,
+      fastChargers: 4,
+      fastPowerKw: 50,
+      diversityPct: 75,
+      spareKw: 380
+    },
+    new_built: {
+      name: "신축 최신 단지 (600세대 · 신축 5%)",
+      aptName: "힐스테이트 에코시티",
+      buildingEra: "new",
+      households: 600,
+      parkingSlots: 800,
+      greenCars: 65,
+      slowChargers: 38,
+      slowPowerKw: 7,
+      fastChargers: 2,
+      fastPowerKw: 100,
+      diversityPct: 80,
+      spareKw: 350
+    },
+    small_new_target: {
+      name: "신규 단속 편입 중소형 (180세대 · 기축 2%)",
+      aptName: "한마음 주공 아파트",
+      buildingEra: "existing",
+      households: 180,
+      parkingSlots: 190,
+      greenCars: 5,
+      slowChargers: 4,
+      slowPowerKw: 7,
+      fastChargers: 0,
+      fastPowerKw: 50,
+      diversityPct: 85,
+      spareKw: 50
+    }
+  };
+
+  // --- Calculation Core Function ---
+  function computeAllMetrics() {
+    var ratio = state.buildingEra === "new" ? 0.05 : 0.02;
+    var exactRequired = state.parkingSlots * ratio;
+    // Statutory requirement in Korean building practice rounds up (Math.ceil) to ensure the mandatory percentage is strictly met
+    var legalRequired = Math.ceil(exactRequired);
+
+    var totalInstalled = state.slowChargers + state.fastChargers;
+    var isCompliant = totalInstalled >= legalRequired;
+    var shortage = legalRequired - totalInstalled;
+    var surplus = totalInstalled - legalRequired;
+
+    // Power Calculation
+    var slowNominalTotal = state.slowChargers * state.slowPowerKw;
+    var fastNominalTotal = state.fastChargers * state.fastPowerKw;
+    var nameplateTotalKw = slowNominalTotal + fastNominalTotal;
+
+    var diversity = state.diversityPct / 100;
+    var peakDemandKw = nameplateTotalKw * diversity;
+
+    // Equivalent households (Standard Korean medium apartment peak load ~3kW per household)
+    var equivalentHouseholds = Math.round(peakDemandKw / 3);
+
+    // Transformer Margin Analysis
+    var transformerMargin = state.spareKw - peakDemandKw;
+    var isTransformerSafe = transformerMargin >= 0;
+
+    // Mixed Parking Rule:
+    // Rule: Installed EV charging slots > registered eco-friendly vehicles (BEV + PHEV)
+    var isMixedParkingAllowed = totalInstalled > state.greenCars;
+
+    return {
+      ratioPct: state.buildingEra === "new" ? 5 : 2,
+      exactRequired: exactRequired,
+      legalRequired: legalRequired,
+      totalInstalled: totalInstalled,
+      isCompliant: isCompliant,
+      shortage: shortage,
+      surplus: surplus,
+      slowNominalTotal: slowNominalTotal,
+      fastNominalTotal: fastNominalTotal,
+      nameplateTotalKw: nameplateTotalKw,
+      peakDemandKw: peakDemandKw,
+      equivalentHouseholds: equivalentHouseholds,
+      transformerMargin: transformerMargin,
+      isTransformerSafe: isTransformerSafe,
+      isMixedParkingAllowed: isMixedParkingAllowed
+    };
+  }
+
+  // --- UI Update Renderer ---
+  function renderUI() {
+    var calc = computeAllMetrics();
+
+    // 1. Inputs Sync
+    var aptNameInput = document.getElementById("input-apt-name");
+    if (aptNameInput && aptNameInput.value !== state.aptName) aptNameInput.value = state.aptName;
+
+    var existingRadio = document.getElementById("type-existing");
+    var newRadio = document.getElementById("type-new");
+    if (existingRadio && newRadio) {
+      if (state.buildingEra === "new") newRadio.checked = true;
+      else existingRadio.checked = true;
+    }
+
+    var hhInput = document.getElementById("input-households");
+    if (hhInput) hhInput.value = state.households;
+
+    var pkInput = document.getElementById("input-parking");
+    if (pkInput) pkInput.value = state.parkingSlots;
+
+    var gcInput = document.getElementById("input-green-cars");
+    if (gcInput) gcInput.value = state.greenCars;
+
+    var scInput = document.getElementById("input-slow-count");
+    if (scInput) scInput.value = state.slowChargers;
+
+    var spSelect = document.getElementById("select-slow-power");
+    if (spSelect) spSelect.value = state.slowPowerKw;
+
+    var fcInput = document.getElementById("input-fast-count");
+    if (fcInput) fcInput.value = state.fastChargers;
+
+    var fpSelect = document.getElementById("select-fast-power");
+    if (fpSelect) fpSelect.value = state.fastPowerKw;
+
+    var divSlider = document.getElementById("slider-diversity");
+    if (divSlider) divSlider.value = state.diversityPct;
+    var divLabel = document.getElementById("lbl-diversity-val");
+    if (divLabel) divLabel.textContent = state.diversityPct + "%";
+
+    var spareInput = document.getElementById("input-spare-kw");
+    if (spareInput) spareInput.value = state.spareKw;
+
+    // Helper calculations under inputs
+    var carRatioEl = document.getElementById("val-ratio-car");
+    if (carRatioEl) {
+      var carRatio = (state.parkingSlots / (state.households || 1)).toFixed(2);
+      carRatioEl.textContent = carRatio + "대";
+    }
+
+    var calcExactEl = document.getElementById("val-calc-exact");
+    if (calcExactEl) {
+      calcExactEl.textContent = calc.exactRequired.toFixed(2) + "대 (올림 " + calc.legalRequired + "대)";
+    }
+
+    var slowTotalKwEl = document.getElementById("val-slow-total-kw");
+    if (slowTotalKwEl) slowTotalKwEl.textContent = calc.slowNominalTotal + " kW";
+
+    var fastTotalKwEl = document.getElementById("val-fast-total-kw");
+    if (fastTotalKwEl) fastTotalKwEl.textContent = calc.fastNominalTotal + " kW";
+
+    // 2. Verdict Header & Title
+    var verdictTitleEl = document.getElementById("verdict-apt-title");
+    if (verdictTitleEl) {
+      verdictTitleEl.textContent = (state.aptName ? state.aptName : "아파트 단지") + " 의무 진단";
+    }
+
+    var badgeCompEl = document.getElementById("badge-compliance");
+    var badgeTextEl = document.getElementById("badge-compliance-text");
+    var tileCharger = document.getElementById("tile-charger-status");
+
+    if (badgeCompEl && badgeTextEl) {
+      if (calc.isCompliant) {
+        badgeCompEl.className = "verdict-status-pill status-pass";
+        badgeTextEl.textContent = "법정 의무 충족 (" + calc.totalInstalled + "/" + calc.legalRequired + "대)";
+        if (tileCharger) {
+          tileCharger.className = "metric-tile success";
+        }
+      } else {
+        badgeCompEl.className = "verdict-status-pill status-fail";
+        badgeTextEl.textContent = "법정 의무 미달 (" + calc.shortage + "대 부족)";
+        if (tileCharger) {
+          tileCharger.className = "metric-tile alert";
+        }
+      }
+    }
+
+    // Key Figures
+    var kpiInstalled = document.getElementById("kpi-installed-count");
+    if (kpiInstalled) kpiInstalled.textContent = calc.totalInstalled;
+
+    var kpiRequired = document.getElementById("kpi-required-count");
+    if (kpiRequired) kpiRequired.textContent = calc.legalRequired;
+
+    var kpiDiffText = document.getElementById("kpi-diff-text");
+    if (kpiDiffText) {
+      if (calc.isCompliant) {
+        kpiDiffText.style.color = "var(--tertiary)";
+        kpiDiffText.textContent = "의무 기준 충족 (여유 +" + calc.surplus + "대)";
+      } else {
+        kpiDiffText.style.color = "var(--error)";
+        kpiDiffText.textContent = "⚠️ " + calc.shortage + "대 부족 (최대 3천만 원 이행강제금 위험)";
+      }
+    }
+
+    var kpiPeakKw = document.getElementById("kpi-peak-kw");
+    if (kpiPeakKw) kpiPeakKw.textContent = calc.peakDemandKw.toFixed(1);
+
+    var kpiEquiv = document.getElementById("kpi-power-equivalent");
+    if (kpiEquiv) kpiEquiv.textContent = "약 " + calc.equivalentHouseholds + "세대 상시 전력량";
+
+    // Mixed Parking Box
+    var mixedBox = document.getElementById("mixed-parking-box");
+    var mixedIcon = document.getElementById("icon-mixed");
+    var mixedTitle = document.getElementById("title-mixed");
+    var mixedDesc = document.getElementById("desc-mixed");
+    var mixedList = document.getElementById("checklist-mixed");
+
+    if (mixedBox && mixedTitle && mixedDesc && mixedList) {
+      if (calc.isMixedParkingAllowed) {
+        mixedBox.className = "mixed-parking-card allowed";
+        mixedTitle.textContent = "충전 구역 '혼용 주차' 허용 요건: 충족 (일반차 주차 허용 가능)";
+        mixedDesc.textContent = "단지 내 충전 구역(" + calc.totalInstalled + "면)이 등록된 친환경 차량(" + state.greenCars + "대)보다 많아 주차난 완화를 위한 '혼용 주차' 허용 요건을 충족합니다.";
+        mixedList.innerHTML = `
+          <li>
+            <i data-lucide="check" style="width: 14px; height: 14px; flex-shrink: 0; margin-top: 2px;"></i>
+            <span><strong>지자체 별도 승인 불필요:</strong> 관할 구청 허가 없이 <u>입주자대표회의 의결만으로 즉시 시행 가능</u></span>
+          </li>
+          <li>
+            <i data-lucide="alert-triangle" style="width: 14px; height: 14px; flex-shrink: 0; margin-top: 2px; color: var(--error);"></i>
+            <span><strong>필수 표지 부착:</strong> 해당 면에 <u>'일반 차량 주차 가능' 안내 표지</u>를 반드시 부착해야 과태료(10만 원) 단속에서 제외</span>
+          </li>
+        `;
+      } else {
+        mixedBox.className = "mixed-parking-card disallowed";
+        mixedTitle.textContent = "충전 구역 '혼용 주차' 허용 불가 (전용 주차 엄격 유지)";
+        mixedDesc.textContent = "단지 내 등록 친환경차(" + state.greenCars + "대)가 충전 구역(" + calc.totalInstalled + "면)보다 많거나 같으므로 일반 내연기관 차량 주차를 허용할 수 없습니다.";
+        mixedList.innerHTML = `
+          <li>
+            <i data-lucide="x-circle" style="width: 14px; height: 14px; flex-shrink: 0; margin-top: 2px; color: var(--error);"></i>
+            <span><strong>전용 주차 의무:</strong> 친환경차 등록 대수가 충전기를 초과하여 일반 내연기관 차량 주차 시 <strong>과태료 10만 원</strong> 부과 대상</span>
+          </li>
+          <li>
+            <i data-lucide="info" style="width: 14px; height: 14px; flex-shrink: 0; margin-top: 2px;"></i>
+            <span><strong>개선 방안:</strong> 충전기를 추가 확충하여 등록 차량 대수를 초과하게 되면 입대의 의결을 거쳐 혼용 주차가 가능해집니다.</span>
+          </li>
+        `;
+      }
+    }
+
+    // Power Load Sub-panel
+    var nameplateKwEl = document.getElementById("val-nameplate-kw");
+    if (nameplateKwEl) nameplateKwEl.textContent = calc.nameplateTotalKw + " kW";
+
+    var marginKwEl = document.getElementById("val-transformer-margin");
+    var marginStatusEl = document.getElementById("val-margin-status");
+    var tilePower = document.getElementById("tile-power-status");
+
+    if (marginKwEl && marginStatusEl) {
+      if (calc.isTransformerSafe) {
+        marginKwEl.textContent = "+" + calc.transformerMargin.toFixed(1) + " kW";
+        marginKwEl.style.color = "var(--tertiary)";
+        marginStatusEl.textContent = "변압기 여유 용량 내 수용 가능 (안전)";
+        marginStatusEl.style.color = "var(--tertiary)";
+        if (tilePower) tilePower.className = "metric-tile highlight";
+      } else {
+        marginKwEl.textContent = calc.transformerMargin.toFixed(1) + " kW (부족)";
+        marginKwEl.style.color = "var(--error)";
+        marginStatusEl.textContent = "⚠️ 변압기 용량 초과! 한전 계약전력 증설 공사 필요";
+        marginStatusEl.style.color = "var(--error)";
+        if (tilePower) tilePower.className = "metric-tile alert";
+      }
+    }
+
+    var boxPeakKw = document.getElementById("box-peak-kw");
+    if (boxPeakKw) boxPeakKw.textContent = calc.peakDemandKw.toFixed(1) + " kW";
+
+    var boxHouseEq = document.getElementById("box-house-eq");
+    if (boxHouseEq) boxHouseEq.textContent = calc.equivalentHouseholds + "세대";
+
+    // Sticky Bar for Mobile
+    var stickyVerdict = document.getElementById("sticky-verdict-text");
+    if (stickyVerdict) {
+      if (calc.isCompliant) {
+        stickyVerdict.textContent = "충족 (" + calc.totalInstalled + "/" + calc.legalRequired + "대)";
+        stickyVerdict.style.color = "var(--tertiary)";
+      } else {
+        stickyVerdict.textContent = "미달 (" + calc.shortage + "대 부족)";
+        stickyVerdict.style.color = "var(--error)";
+      }
+    }
+
+    var stickyPeak = document.getElementById("sticky-peak-kw");
+    if (stickyPeak) stickyPeak.textContent = Math.round(calc.peakDemandKw) + " kW";
+
+    // Update Lucide Icons
+    if (window.lucide && typeof window.lucide.createIcons === 'function') {
+      window.lucide.createIcons();
+    }
+
+    // Update Chart
+    updateChart(calc);
+
+    // Persist State
+    persistStateAsync();
+  }
+
+  // --- Chart.js Power Load Visualizer ---
+  function updateChart(calc) {
+    var ctx = document.getElementById("chart-power-load");
+    if (!ctx) return;
+    if (typeof Chart === 'undefined') return; // CDN 미로딩(오프라인 최초 실행 등) 시 차트만 생략
+
+    var slowPart = calc.slowNominalTotal * (state.diversityPct / 100);
+    var fastPart = calc.fastNominalTotal * (state.diversityPct / 100);
+    var spareRemain = Math.max(0, calc.transformerMargin);
+
+    var labels = ['완속 피크 부하', '급속 피크 부하', '변압기 잔여 여유'];
+    var dataVals = [parseFloat(slowPart.toFixed(1)), parseFloat(fastPart.toFixed(1)), parseFloat(spareRemain.toFixed(1))];
+    var colors = ['#0f62fe', '#8a3ffc', '#198038'];
+
+    if (chartInstance) {
+      chartInstance.data.datasets[0].data = dataVals;
+      chartInstance.update();
+    } else {
+      chartInstance = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+          labels: labels,
+          datasets: [{
+            data: dataVals,
+            backgroundColor: colors,
+            borderColor: '#ffffff',
+            borderWidth: 2,
+            hoverOffset: 4
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              position: 'bottom',
+              labels: {
+                boxWidth: 12,
+                font: {
+                  family: "'IBM Plex Sans', 'Noto Sans KR', sans-serif",
+                  size: 11
+                },
+                color: '#161616'
+              }
+            },
+            tooltip: {
+              callbacks: {
+                label: function(context) {
+                  return " " + context.label + ": " + context.parsed + " kW";
+                }
+              }
+            }
+          },
+          cutout: '62%'
+        }
+      });
+    }
+  }
+
+  // --- Input Handlers (Hoisted & Robust) ---
+  function handleAptNameChange(val) {
+    state.aptName = val;
+    renderUI();
+  }
+
+  function handleBuildingEraChange(era) {
+    state.buildingEra = era;
+    renderUI();
+  }
+
+  function handleHouseholdChange(val) {
+    var num = parseInt(val, 10);
+    if (!isNaN(num) && num > 0) {
+      state.households = num;
+      renderUI();
+    }
+  }
+
+  function handleParkingChange(val) {
+    var num = parseInt(val, 10);
+    if (!isNaN(num) && num > 0) {
+      state.parkingSlots = num;
+      renderUI();
+    }
+  }
+
+  function handleGreenCarsChange(val) {
+    var num = parseInt(val, 10);
+    if (!isNaN(num) && num >= 0) {
+      state.greenCars = num;
+      renderUI();
+    }
+  }
+
+  function handleSlowCountChange(val) {
+    var num = parseInt(val, 10);
+    if (!isNaN(num) && num >= 0) {
+      state.slowChargers = num;
+      renderUI();
+    }
+  }
+
+  function handleSlowPowerChange(val) {
+    var num = parseFloat(val);
+    if (!isNaN(num) && num > 0) {
+      state.slowPowerKw = num;
+      renderUI();
+    }
+  }
+
+  function handleFastCountChange(val) {
+    var num = parseInt(val, 10);
+    if (!isNaN(num) && num >= 0) {
+      state.fastChargers = num;
+      renderUI();
+    }
+  }
+
+  function handleFastPowerChange(val) {
+    var num = parseFloat(val);
+    if (!isNaN(num) && num > 0) {
+      state.fastPowerKw = num;
+      renderUI();
+    }
+  }
+
+  function handleDiversityChange(val) {
+    var num = parseInt(val, 10);
+    if (!isNaN(num) && num >= 50 && num <= 100) {
+      state.diversityPct = num;
+      renderUI();
+    }
+  }
+
+  function handleSpareKwChange(val) {
+    var num = parseFloat(val);
+    if (!isNaN(num) && num >= 0) {
+      state.spareKw = num;
+      renderUI();
+    }
+  }
+
+  // Dual-input Stepper Helper
+  function stepNumberInput(inputId, delta) {
+    var el = document.getElementById(inputId);
+    if (!el) return;
+    var current = parseInt(el.value, 10) || 0;
+    var min = parseInt(el.getAttribute('min'), 10);
+    var max = parseInt(el.getAttribute('max'), 10);
+    var updated = current + delta;
+    if (!isNaN(min) && updated < min) updated = min;
+    if (!isNaN(max) && updated > max) updated = max;
+    el.value = updated;
+
+    // Trigger proper change
+    if (inputId === 'input-households') state.households = updated;
+    else if (inputId === 'input-parking') state.parkingSlots = updated;
+    else if (inputId === 'input-green-cars') state.greenCars = updated;
+    else if (inputId === 'input-slow-count') state.slowChargers = updated;
+    else if (inputId === 'input-fast-count') state.fastChargers = updated;
+    else if (inputId === 'input-spare-kw') state.spareKw = updated;
+
+    renderUI();
+  }
+
+  // --- Preset Activation ---
+  function applyPreset(key) {
+    var preset = PRESETS[key];
+    if (!preset) return;
+
+    state = {
+      aptName: preset.aptName,
+      buildingEra: preset.buildingEra,
+      households: preset.households,
+      parkingSlots: preset.parkingSlots,
+      greenCars: preset.greenCars,
+      slowChargers: preset.slowChargers,
+      slowPowerKw: preset.slowPowerKw,
+      fastChargers: preset.fastChargers,
+      fastPowerKw: preset.fastPowerKw,
+      diversityPct: preset.diversityPct,
+      spareKw: preset.spareKw
+    };
+
+    // Update active preset styling
+    var btns = document.querySelectorAll('.preset-btn');
+    btns.forEach(function(btn) {
+      btn.classList.remove('active');
+    });
+    if (event && event.currentTarget) {
+      event.currentTarget.classList.add('active');
+    }
+
+    renderUI();
+    showToast("'" + preset.name + "' 시나리오가 적용되었습니다.");
+  }
+
+  // --- Modal & Agenda Report ---
+  function openAgendaModal() {
+    var modal = document.getElementById("modal-agenda");
+    var body = document.getElementById("modal-report-content");
+    if (!modal || !body) return;
+
+    var calc = computeAllMetrics();
+    var eraText = state.buildingEra === "new" ? "신축 (5% 의무)" : "기축 (2% 의무)";
+    var complianceVerdict = calc.isCompliant
+      ? `<span style="color: var(--tertiary); font-weight: 700;">[적합] 법정 의무 충족 (${calc.totalInstalled}/${calc.legalRequired}대)</span>`
+      : `<span style="color: var(--error); font-weight: 700;">[부적합] 법정 의무 ${calc.shortage}대 부족 (이행강제금 대상)</span>`;
+
+    var mixedVerdict = calc.isMixedParkingAllowed
+      ? `<span style="color: var(--tertiary); font-weight: 700;">허용 가능 (총 충전면수 ${calc.totalInstalled}면 > 등록 친환경차 ${state.greenCars}대)</span>`
+      : `<span style="color: var(--error); font-weight: 700;">허용 불가 (친환경차 ${state.greenCars}대 >= 충전기 ${calc.totalInstalled}대)</span>`;
+
+    body.innerHTML = `
+      <div style="background: var(--surface-container); padding: var(--space-md); border-left: 3px solid var(--primary); font-size: 0.82rem;">
+        <h4 style="font-size: 0.95rem; margin-bottom: 0.35rem;">[안건 제2026-호] 친환경차 충전시설 법정의무 충족 및 주차구역 운영계획 심의(안)</h4>
+        <p style="color: var(--on-surface-variant);">관련근거: 환경친화적 자동차의 개발 및 보급 촉진에 관한 법률 제11조의2 및 동법 시행령</p>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: var(--space-xs);">
+        <strong style="font-size: 0.9rem;">1. 단지 현황 및 법정 기준</strong>
+        <table class="matrix-table" style="font-size: 0.8rem;">
+          <tr><td style="width: 35%;">단지명 / 구분</td><td><strong>${state.aptName}</strong> (${eraText})</td></tr>
+          <tr><td>총 세대수 / 총 주차대수</td><td>${state.households}세대 / ${state.parkingSlots}면 (세대당 ${(state.parkingSlots/state.households).toFixed(2)}대)</td></tr>
+          <tr><td>법정 의무 충전기 수량</td><td>총 주차대수의 ${calc.ratioPct}% = <strong>${calc.legalRequired}대</strong> (산출값 ${calc.exactRequired.toFixed(2)}대)</td></tr>
+          <tr><td>현재 설치/계획 충전기</td><td>완속 ${state.slowChargers}대(${state.slowPowerKw}kW) + 급속 ${state.fastChargers}대(${state.fastPowerKw}kW) = 총 <strong>${calc.totalInstalled}대</strong></td></tr>
+          <tr><td>법정 기준 충족 판정</td><td>${complianceVerdict}</td></tr>
+        </table>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: var(--space-xs);">
+        <strong style="font-size: 0.9rem;">2. 전기안전 및 필요 수전용량 분석</strong>
+        <ul style="padding-left: 1.2rem; margin: 0; font-size: 0.8rem; display: flex; flex-direction: column; gap: 0.25rem;">
+          <li>충전설비 정격 용량 합계: <strong>${calc.nameplateTotalKw} kW</strong></li>
+          <li>수용률 ${state.diversityPct}% 적용 시 피크 전력 부하: <strong>${calc.peakDemandKw.toFixed(1)} kW</strong></li>
+          <li>가구 환산 전력: 일반 30평형 아파트 <strong>약 ${calc.equivalentHouseholds}세대</strong>의 동시 전력소비량과 대등</li>
+          <li>단지 변압기 여유용량(${state.spareKw} kW) 대비: <strong>${calc.transformerMargin >= 0 ? '+' + calc.transformerMargin.toFixed(1) + ' kW 여유 (안전)' : calc.transformerMargin.toFixed(1) + ' kW 초과 (증설 요망)'}</strong></li>
+        </ul>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: var(--space-xs);">
+        <strong style="font-size: 0.9rem;">3. 단지 주차난 완화를 위한 '혼용 주차' 심의 결과</strong>
+        <div style="font-size: 0.8rem; background: var(--surface-container); padding: 0.65rem 0.85rem;">
+          판정 결과: ${mixedVerdict}<br>
+          ${calc.isMixedParkingAllowed
+            ? '✓ 지자체 별도 인허가 없이 <strong>입주자대표회의 자체 의결만으로 혼용 주차 시행 가능</strong>.<br>✓ 단, 미부착 시 과태료 방지를 위해 해당 충전면에 반드시 <u>"일반 차량 주차 가능"</u> 안내 표지를 부착해야 함.'
+            : '✓ 친환경차 등록 대수가 충전구역보다 많으므로 일반 차량 주차 허용 시 충전 방해로 과태료(10만 원) 단속 대상이 됩니다.'
+          }
+        </div>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: var(--space-xs);">
+        <strong style="font-size: 0.9rem; color: var(--error);">4. 2026년 기준 미이행 시 행정 처벌 및 리스크</strong>
+        <p style="font-size: 0.8rem; color: var(--on-surface-variant); margin: 0;">
+          • 유예 기한 만료(2026.01.27) 이후 미달 단지는 지자체 시정명령 후 <strong>최대 3,000만 원 이하의 이행강제금</strong>이 부과됩니다.<br>
+          • 100세대 이상 단지는 완속 충전 장기 점유 단속 예외에서 제외되며, 2026년 2월 5일부터 <strong>PHEV 완속 충전 제한 시간이 기존 14시간에서 7시간으로 단축</strong>(초과 시 과태료 10만 원)되므로 입주민 안내문 게시가 필수적입니다.
+        </p>
+      </div>
+    `;
+
+    modal.classList.add("open");
+    if (window.lucide) window.lucide.createIcons();
+  }
+
+  function closeAgendaModal() {
+    var modal = document.getElementById("modal-agenda");
+    if (modal) modal.classList.remove("open");
+  }
+
+  function handleBackdropClick(e) {
+    if (e.target && e.target.id === 'modal-agenda') {
+      closeAgendaModal();
+    }
+  }
+
+  // --- Copy Text & Clipboard Action ---
+  function copyReportText() {
+    var calc = computeAllMetrics();
+    var report = `[${state.aptName} 전기차 충전시설 및 수전용량 의결 검토서]
+--------------------------------------------------
+■ 단지 기본정보
+- 건축허가 구분: ${state.buildingEra === 'new' ? '신축 (5% 의무)' : '기축 (2% 의무)'}
+- 총 세대수 / 총 주차대수: ${state.households}세대 / ${state.parkingSlots}면 (세대당 ${(state.parkingSlots/state.households).toFixed(2)}대)
+- 친환경차 등록대수: ${state.greenCars}대 (BEV+PHEV)
+
+■ 충전기 법정의무 및 설치 계획
+- 법정 의무 충전기 수량: ${calc.legalRequired}대 (주차대수의 ${calc.ratioPct}%)
+- 계획 충전기 수량: 완속 ${state.slowChargers}대(${state.slowPowerKw}kW) + 급속 ${state.fastChargers}대(${state.fastPowerKw}kW) = 총 ${calc.totalInstalled}대
+- 의무 달성 여부: ${calc.isCompliant ? '✅ 법정 기준 충족 (+' + calc.surplus + '대 여유)' : '⚠️ 법정 기준 미달 (' + calc.shortage + '대 부족 - 이행강제금 위험)'}
+
+■ 필요 수전용량 및 전력 부하
+- 설비 정격 총합: ${calc.nameplateTotalKw} kW
+- 피크 전력 수요(수용률 ${state.diversityPct}%): ${calc.peakDemandKw.toFixed(1)} kW (아파트 약 ${calc.equivalentHouseholds}세대 동시 전력량)
+- 변압기 여유 마진: ${calc.transformerMargin >= 0 ? '+' + calc.transformerMargin.toFixed(1) + ' kW (안전)' : calc.transformerMargin.toFixed(1) + ' kW (초과 - 증설 필요)'}
+
+■ 혼용 주차 허용 여부
+- 판정: ${calc.isMixedParkingAllowed ? '✅ 허용 가능 (충전면수 > 친환경차 대수, 입대의 자체 의결 가능)' : '❌ 허용 불가 (친환경차 대수 초과, 전용 주차 유지)'}
+- 필수 조치: 안내 표지 "일반 차량 주차 가능" 부착 시 과태료 단속 제외
+
+■ 2026년 행정처벌 및 과태료 안내
+- 의무설치 유예 최종 만료: 2026.01.27 (미이행 시 최대 3,000만 원 이행강제금)
+- 2026.02.05 신설 규정: PHEV 완속 충전 7시간 제한 초과 시 과태료 10만 원
+- BEV 완속 14시간, 급속 1시간 초과 시 과태료 10만 원 / 내연차 무단주차 10만 원`;
+
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(report).then(function() {
+        showToast("의결 검토서가 클립보드에 복사되었습니다.");
+      }).catch(function() {
+        fallbackCopyText(report);
+      });
+    } else {
+      fallbackCopyText(report);
+    }
+  }
+
+  function fallbackCopyText(text) {
+    var textArea = document.createElement("textarea");
+    textArea.value = text;
+    textArea.style.position = "fixed";
+    textArea.style.left = "-9999px";
+    document.body.appendChild(textArea);
+    textArea.focus();
+    textArea.select();
+    try {
+      document.execCommand('copy');
+      showToast("의결 검토서가 클립보드에 복사되었습니다.");
+    } catch (err) {
+      showToast("복사에 실패했습니다. 수동으로 드래그 복사해주세요.");
+    }
+    document.body.removeChild(textArea);
+  }
+
+  function showToast(msg) {
+    var toast = document.getElementById("toast-notify");
+    var toastText = document.getElementById("toast-text");
+    if (!toast || !toastText) return;
+    toastText.textContent = msg;
+    toast.classList.add("show");
+    setTimeout(function() {
+      toast.classList.remove("show");
+    }, 2800);
+  }
+
+  // --- Persistence & Lifecycle Integration ---
+  var STORAGE_KEY = 'ev-charger-calc-state-v1';
+
+  function saveLocalState() {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch (err) {}
+  }
+
+  function loadLocalState() {
+    try {
+      var raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return;
+      var saved = JSON.parse(raw);
+      if (!saved || typeof saved !== 'object') return;
+      Object.keys(state).forEach(function(k) {
+        if (saved[k] !== undefined && typeof saved[k] === typeof state[k]) state[k] = saved[k];
+      });
+    } catch (err) {}
+  }
+
+  async function persistStateAsync() {
+    saveLocalState();
+    if (window.notebookAppApi && typeof window.notebookAppApi.setAppState === 'function') {
+      try {
+        await window.notebookAppApi.setAppState(state);
+      } catch (err) {
+        console.warn("NotebookAppApi setAppState failed", err);
+      }
+    }
+  }
+
+  async function loadInitialState() {
+    loadLocalState();
+    if (window.notebookAppApi && typeof window.notebookAppApi.getAppState === 'function') {
+      try {
+        var saved = await window.notebookAppApi.getAppState();
+        if (saved && typeof saved === 'object') {
+          if (saved.aptName !== undefined) state.aptName = saved.aptName;
+          if (saved.buildingEra !== undefined) state.buildingEra = saved.buildingEra;
+          if (saved.households !== undefined) state.households = saved.households;
+          if (saved.parkingSlots !== undefined) state.parkingSlots = saved.parkingSlots;
+          if (saved.greenCars !== undefined) state.greenCars = saved.greenCars;
+          if (saved.slowChargers !== undefined) state.slowChargers = saved.slowChargers;
+          if (saved.slowPowerKw !== undefined) state.slowPowerKw = saved.slowPowerKw;
+          if (saved.fastChargers !== undefined) state.fastChargers = saved.fastChargers;
+          if (saved.fastPowerKw !== undefined) state.fastPowerKw = saved.fastPowerKw;
+          if (saved.diversityPct !== undefined) state.diversityPct = saved.diversityPct;
+          if (saved.spareKw !== undefined) state.spareKw = saved.spareKw;
+        }
+      } catch (err) {
+        console.warn("NotebookAppApi getAppState failed", err);
+      }
+    }
+
+    renderUI();
+
+    if (window.notebookAppApi && typeof window.notebookAppApi.notifyAppReady === 'function') {
+      try {
+        window.notebookAppApi.notifyAppReady();
+      } catch (err) {
+        console.warn("NotebookAppApi notifyAppReady failed", err);
+      }
+    }
+  }
+
+  // Window onload
+  window.addEventListener("DOMContentLoaded", function() {
+    loadInitialState();
+  });
+</script>
+
+<script>
+  // --- PWA: Service Worker 등록 ---
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', function() {
+      navigator.serviceWorker.register('./sw.js').catch(function(err) {
+        console.warn('Service worker 등록 실패', err);
+      });
+    });
+  }
+</script>
+
+</body>
+</html>
